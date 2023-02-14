@@ -533,63 +533,63 @@ public:
     /// Interprets byte vector data as an XLSX file and sets the content of this
     /// workbook to match that file.
     /// </summary>
-    void load(const std::vector<std::uint8_t> &data);
+    void load(const std::vector<std::uint8_t> &data, std::function<void(int)> notify_progress = [](int){});
 
     /// <summary>
     /// Interprets byte vector data as an XLSX file encrypted with the
     /// given password and sets the content of this workbook to match that file.
     /// </summary>
-    void load(const std::vector<std::uint8_t> &data, const std::string &password);
+    void load(const std::vector<std::uint8_t> &data, const std::string &password, std::function<void(int)> notify_progress = [](int){});
 
     /// <summary>
     /// Interprets file with the given filename as an XLSX file and sets
     /// the content of this workbook to match that file.
     /// </summary>
-    void load(const std::string &filename);
+    void load(const std::string &filename, std::function<void(int)> notify_progress = [](int){});
 
     /// <summary>
     /// Interprets file with the given filename as an XLSX file encrypted with the
     /// given password and sets the content of this workbook to match that file.
     /// </summary>
-    void load(const std::string &filename, const std::string &password);
+    void load(const std::string &filename, const std::string &password, std::function<void(int)> notify_progress = [](int){});
 
 #ifdef _MSC_VER
     /// <summary>
     /// Interprets file with the given filename as an XLSX file and sets
     /// the content of this workbook to match that file.
     /// </summary>
-    void load(const std::wstring &filename);
+    void load(const std::wstring &filename, std::function<void(int)> notify_progress = [](int){});
 
     /// <summary>
     /// Interprets file with the given filename as an XLSX file encrypted with the
     /// given password and sets the content of this workbook to match that file.
     /// </summary>
-    void load(const std::wstring &filename, const std::string &password);
+    void load(const std::wstring &filename, const std::string &password, std::function<void(int)> notify_progress = [](int){});
 #endif
 
     /// <summary>
     /// Interprets file with the given filename as an XLSX file and sets the
     /// content of this workbook to match that file.
     /// </summary>
-    void load(const xlnt::path &filename);
+    void load(const xlnt::path &filename, std::function<void(int)> notify_progress = [](int){});
 
     /// <summary>
     /// Interprets file with the given filename as an XLSX file encrypted with the
     /// given password and sets the content of this workbook to match that file.
     /// </summary>
-    void load(const xlnt::path &filename, const std::string &password);
+    void load(const xlnt::path &filename, const std::string &password, std::function<void(int)> notify_progress = [](int){});
 
     /// <summary>
     /// Interprets data in stream as an XLSX file and sets the content of this
     /// workbook to match that file.
     /// </summary>
-    void load(std::istream &stream);
+    void load(std::istream &stream, std::function<void(int)> notify_progress = [](int){});
 
     /// <summary>
     /// Interprets data in stream as an XLSX file encrypted with the given password
     /// and sets the content of this workbook to match that file.
     /// </summary>
-    void load(std::istream &stream, const std::string &password);
+    void load(std::istream &stream, const std::string &password, std::function<void(int)> notify_progress = [](int){});
 
     // View
 

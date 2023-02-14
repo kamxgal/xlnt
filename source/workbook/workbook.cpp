@@ -249,7 +249,7 @@ std::string content_type(xlnt::relationship_type type)
     case relationship_type::volatile_dependencies:
         return "application/vnd.openxmlformats-officedocument.spreadsheetml.volatileDependencies+xml";
     case relationship_type::vbaproject:
-        return "application/vnd.ms-office.vbaProject";        
+        return "application/vnd.ms-office.vbaProject";
     case relationship_type::worksheet:
         return "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet.main+xml";
     }
@@ -889,21 +889,21 @@ range workbook::named_range(const std::string &name)
     throw key_not_found();
 }
 
-void workbook::load(std::istream &stream)
+void workbook::load(std::istream &stream, std::function<void(int)> notify_progress)
 {
     clear();
     detail::xlsx_consumer consumer(*this);
 
     try
     {
-        consumer.read(stream);
+        consumer.read(stream, std::move(notify_progress));
     }
     catch (xlnt::exception &e)
     {
         if (e.what() == std::string("xlnt::exception : encrypted xlsx, password required"))
         {
             stream.seekg(0, std::ios::beg);
-            consumer.read(stream, "VelvetSweatshop");
+            consumer.read(stream, "VelvetSweatshop", std::move(notify_progress));
         }
         else
         {
@@ -912,7 +912,7 @@ void workbook::load(std::istream &stream)
     }
 }
 
-void workbook::load(const std::vector<std::uint8_t> &data)
+void workbook::load(const std::vector<std::uint8_t> &data, std::function<void(int)> notify_progress)
 {
     if (data.size() < 22) // the shortest ZIP file is 22 bytes
     {
@@ -921,15 +921,15 @@ void workbook::load(const std::vector<std::uint8_t> &data)
 
     xlnt::detail::vector_istreambuf data_buffer(data);
     std::istream data_stream(&data_buffer);
-    load(data_stream);
+    load(data_stream, std::move(notify_progress));
 }
 
-void workbook::load(const std::string &filename)
+void workbook::load(const std::string &filename, std::function<void(int)> notify_progress)
 {
-    return load(path(filename));
+    return load(path(filename), std::move(notify_progress));
 }
 
-void workbook::load(const path &filename)
+void workbook::load(const path &filename, std::function<void(int)> notify_progress)
 {
     std::ifstream file_stream;
     open_stream(file_stream, filename.string());
@@ -939,15 +939,15 @@ void workbook::load(const path &filename)
         throw xlnt::exception("file not found " + filename.string());
     }
 
-    load(file_stream);
+    load(file_stream, std::move(notify_progress));
 }
 
-void workbook::load(const std::string &filename, const std::string &password)
+void workbook::load(const std::string &filename, const std::string &password, std::function<void(int)> notify_progress)
 {
-    return load(path(filename), password);
+    return load(path(filename), password, std::move(notify_progress));
 }
 
-void workbook::load(const path &filename, const std::string &password)
+void workbook::load(const path &filename, const std::string &password, std::function<void(int)> notify_progress)
 {
     std::ifstream file_stream;
     open_stream(file_stream, filename.string());
@@ -957,10 +957,10 @@ void workbook::load(const path &filename, const std::string &password)
         throw xlnt::exception("file not found " + filename.string());
     }
 
-    return load(file_stream, password);
+    return load(file_stream, password, std::move(notify_progress));
 }
 
-void workbook::load(const std::vector<std::uint8_t> &data, const std::string &password)
+void workbook::load(const std::vector<std::uint8_t> &data, const std::string &password, std::function<void(int)> notify_progress)
 {
     if (data.size() < 22) // the shortest ZIP file is 22 bytes
     {
@@ -969,14 +969,14 @@ void workbook::load(const std::vector<std::uint8_t> &data, const std::string &pa
 
     xlnt::detail::vector_istreambuf data_buffer(data);
     std::istream data_stream(&data_buffer);
-    load(data_stream, password);
+    load(data_stream, password, std::move(notify_progress));
 }
 
-void workbook::load(std::istream &stream, const std::string &password)
+void workbook::load(std::istream &stream, const std::string &password, std::function<void(int)> notify_progress)
 {
     clear();
     detail::xlsx_consumer consumer(*this);
-    consumer.read(stream, password);
+    consumer.read(stream, password, std::move(notify_progress));
 }
 
 void workbook::save(std::vector<std::uint8_t> &data) const
@@ -1044,18 +1044,18 @@ void workbook::save(const std::wstring &filename, const std::string &password) c
     save(file_stream, password);
 }
 
-void workbook::load(const std::wstring &filename)
+void workbook::load(const std::wstring &filename, std::function<void(int)> notify_progress)
 {
     std::ifstream file_stream;
     open_stream(file_stream, filename);
-    load(file_stream);
+    load(file_stream, std::move(notify_progress));
 }
 
-void workbook::load(const std::wstring &filename, const std::string &password)
+void workbook::load(const std::wstring &filename, const std::string &password, std::function<void(int)> notify_progress)
 {
     std::ifstream file_stream;
     open_stream(file_stream, filename);
-    load(file_stream, password);
+    load(file_stream, password, std::move(notify_progress));
 }
 #endif
 
