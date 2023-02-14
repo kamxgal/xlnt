@@ -234,7 +234,7 @@ xlnt::detail::Cell parse_cell(xlnt::row_t row_arg, xml::parser *parser, std::uno
                 else if (string_equal(parser->name(), "f"))
                 {
                     c.formula_string += std::move(parser->value());
-                    
+
                     if (parser->attribute_present("t"))
                     {
                         auto formula_ref = parser->attribute("ref");
@@ -352,7 +352,11 @@ std::pair<xlnt::row_properties, int> parse_row(xml::parser *parser, xlnt::detail
 }
 
 // <sheetData> inside <worksheet> element
-Sheet_Data parse_sheet_data(xml::parser *parser, xlnt::detail::number_serialiser &converter, std::unordered_map<std::string, std::string> &array_formulae, std::unordered_map<int, std::string> &shared_formulae)
+Sheet_Data parse_sheet_data(
+        xml::parser *parser, xlnt::detail::number_serialiser &converter,
+        std::unordered_map<std::string, std::string> &array_formulae,
+        std::unordered_map<int, std::string> &shared_formulae,
+        xlnt::load_progress_notifier& progress_notifier)
 {
     Sheet_Data sheet_data;
     int level = 1; // nesting level
@@ -385,6 +389,8 @@ Sheet_Data parse_sheet_data(xml::parser *parser, xlnt::detail::number_serialiser
             throw xlnt::exception("unexcpected XML parsing event");
         }
         }
+
+        progress_notifier.notify_worksheet_load_progress(parser->parsed_bytes(), parser->size());
     }
     return sheet_data;
 }
@@ -421,9 +427,10 @@ xlsx_consumer::~xlsx_consumer()
 {
 }
 
-void xlsx_consumer::read(std::istream &source)
+void xlsx_consumer::read(std::istream &source, std::function<void(int)> notify_progress)
 {
     archive_.reset(new izstream(source));
+    load_progress_notifier_.init(std::move(notify_progress));
     populate_workbook(false);
 }
 
@@ -457,7 +464,7 @@ void read_defined_names(worksheet ws, std::vector<defined_name> defined_names)
         {
             continue;
         }
-        
+
         if (name.name == "_xlnm.Print_Titles")
         {
             // Basic print titles parser
@@ -490,7 +497,7 @@ void read_defined_names(worksheet ws, std::vector<defined_name> defined_names)
                 {
                     ws.print_title_rows(std::stoul(from), std::stoul(to));
                 }
-                
+
                 // Check for end condition
                 if (i == std::string::npos)
                 {
@@ -519,7 +526,7 @@ std::string xlsx_consumer::read_worksheet_begin(const std::string &rel_id)
     {
         streaming_cell_.reset(new detail::cell_impl());
     }
-    
+
     array_formulae_.clear();
     shared_formulae_.clear();
 
@@ -533,7 +540,7 @@ std::string xlsx_consumer::read_worksheet_begin(const std::string &rel_id)
 
     expect_start_element(qn("spreadsheetml", "worksheet"), xml::content::complex); // CT_Worksheet
     skip_attributes({qn("mc", "Ignorable")});
-    
+
     read_defined_names(ws, defined_names_);
 
     while (in_element(qn("spreadsheetml", "worksheet")))
@@ -838,7 +845,7 @@ void xlsx_consumer::read_worksheet_sheetdata()
         return;
     }
 
-    auto ws_data = parse_sheet_data(parser_, converter_, array_formulae_, shared_formulae_);
+    auto ws_data = parse_sheet_data(parser_, converter_, array_formulae_, shared_formulae_, load_progress_notifier_);
     // NOTE: parse->construct are seperated here and could easily be threaded
     // with a SPSC queue for what is likely to be an easy performance win
     for (auto &row : ws_data.parsed_rows)
@@ -899,8 +906,8 @@ void xlsx_consumer::read_worksheet_sheetdata()
         }
     }
     stack_.pop_back();
-    
-    
+
+
 }
 
 worksheet xlsx_consumer::read_worksheet_end(const std::string &rel_id)
@@ -1310,7 +1317,8 @@ worksheet xlsx_consumer::read_worksheet_end(const std::string &rel_id)
         auto receive = xml::parser::receive_default;
         auto comments_part_streambuf = archive_->open(comments_part);
         std::istream comments_part_stream(comments_part_streambuf.get());
-        xml::parser parser(comments_part_stream, comments_part.string(), receive);
+        xml::parser parser(comments_part_stream, static_cast<size_t>(archive_->get_part_size(comments_part)),
+                           comments_part.string(), receive);
         parser_ = &parser;
 
         read_comments(ws);
@@ -1322,7 +1330,8 @@ worksheet xlsx_consumer::read_worksheet_end(const std::string &rel_id)
 
             auto vml_drawings_part_streambuf = archive_->open(comments_part);
             std::istream vml_drawings_part_stream(comments_part_streambuf.get());
-            xml::parser vml_parser(vml_drawings_part_stream, vml_drawings_part.string(), receive);
+            xml::parser vml_parser(vml_drawings_part_stream, static_cast<size_t>(archive_->get_part_size(comments_part)),
+                                   vml_drawings_part.string(), receive);
             parser_ = &vml_parser;
 
             read_vml_drawings(ws);
@@ -1337,7 +1346,8 @@ worksheet xlsx_consumer::read_worksheet_end(const std::string &rel_id)
         auto receive = xml::parser::receive_default;
         auto drawings_part_streambuf = archive_->open(drawings_part);
         std::istream drawings_part_stream(drawings_part_streambuf.get());
-        xml::parser parser(drawings_part_stream, drawings_part.string(), receive);
+        xml::parser parser(drawings_part_stream, static_cast<size_t>(archive_->get_part_size(drawings_part)),
+                           drawings_part.string(), receive);
         parser_ = &parser;
 
         read_drawings(ws, drawings_part);
@@ -1349,7 +1359,7 @@ worksheet xlsx_consumer::read_worksheet_end(const std::string &rel_id)
             manifest.relationship(sheet_path,
                 relationship_type::printer_settings)});
     }
-    
+
     for (auto array_formula : array_formulae_)
     {
         for (auto row : ws.range(array_formula.first))
@@ -1501,7 +1511,7 @@ bool xlsx_consumer::has_cell()
                 "r2", "ca", "bx"});
 
             formula_string = read_text();
-            
+
             if (is_master_cell)
             {
                 if (has_shared_formula)
@@ -1587,7 +1597,7 @@ std::vector<relationship> xlsx_consumer::read_relationships(const path &part)
 
     auto rels_streambuf = archive_->open(part_rels_path);
     std::istream rels_stream(rels_streambuf.get());
-    xml::parser parser(rels_stream, part_rels_path.string());
+    xml::parser parser(rels_stream, static_cast<size_t>(archive_->get_part_size(part_rels_path)), part_rels_path.string());
     parser_ = &parser;
 
     expect_start_element(qn("relationships", "Relationships"), xml::content::complex);
@@ -1625,7 +1635,7 @@ void xlsx_consumer::read_part(const std::vector<relationship> &rel_chain)
     const auto part_path = manifest.canonicalize(rel_chain);
     auto part_streambuf = archive_->open(part_path);
     std::istream part_stream(part_streambuf.get());
-    xml::parser parser(part_stream, part_path.string());
+    xml::parser parser(part_stream, static_cast<size_t>(archive_->get_part_size(part_path)), part_path.string());
     parser_ = &parser;
 
     switch (rel_chain.back().type())
@@ -1762,6 +1772,8 @@ void xlsx_consumer::read_part(const std::vector<relationship> &rel_chain)
 
 void xlsx_consumer::populate_workbook(bool streaming)
 {
+    load_progress_notifier_.notify_document_load_start();
+
     streaming_ = streaming;
 
     target_.clear();
@@ -1804,7 +1816,7 @@ void xlsx_consumer::read_content_types()
     auto &manifest = target_.manifest();
     auto content_types_streambuf = archive_->open(path("[Content_Types].xml"));
     std::istream content_types_stream(content_types_streambuf.get());
-    xml::parser parser(content_types_stream, "[Content_Types].xml");
+    xml::parser parser(content_types_stream, static_cast<size_t>(archive_->get_part_size(path("[Content_Types].xml"))), "[Content_Types].xml");
     parser_ = &parser;
 
     expect_start_element(qn("content-types", "Types"), xml::content::complex);
@@ -2091,7 +2103,7 @@ void xlsx_consumer::read_office_document(const std::string &content_type) // CT_
                 parser().attribute_map(); // skip remaining attributes
                 name.value = read_text();
                 defined_names_.push_back(name);
-                
+
                 expect_end_element(qn("spreadsheetml", "definedName"));
             }
         }
@@ -2195,8 +2207,12 @@ void xlsx_consumer::read_office_document(const std::string &content_type) // CT_
         }
     }
 
-    for (auto worksheet_rel : manifest().relationships(workbook_path, relationship_type::worksheet))
+    load_progress_notifier_.set_worksheets_num(sheet_title_id_map_.size());
+
+    for (const auto& worksheet_rel : manifest().relationships(workbook_path, relationship_type::worksheet))
     {
+        load_progress_notifier_.notify_worksheet_load_start();
+
         auto title = std::find_if(target_.d_->sheet_title_rel_id_map_.begin(),
             target_.d_->sheet_title_rel_id_map_.end(),
             [&](const std::pair<std::string, std::string> &p) {
@@ -2219,6 +2235,8 @@ void xlsx_consumer::read_office_document(const std::string &content_type) // CT_
         {
             read_part({workbook_rel, worksheet_rel});
         }
+
+        load_progress_notifier_.notify_worksheet_load_end();
     }
 }
 

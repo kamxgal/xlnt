@@ -132,6 +132,11 @@ public:
     /// </summary>
     bool has_file(const path &filename) const;
 
+    /// <summary>
+    ///
+    /// </summary>
+    uint32_t get_part_size(const path &filename) const;
+
 private:
     /// <summary>
     ///

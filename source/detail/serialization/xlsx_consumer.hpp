@@ -35,6 +35,7 @@
 #include <detail/external/include_libstudxml.hpp>
 #include <detail/serialization/zstream.hpp>
 #include <xlnt/utils/numeric.hpp>
+#include <xlnt/utils/load_progress_notifier.hpp>
 
 namespace xlnt {
 
@@ -65,13 +66,13 @@ struct worksheet_impl;
 class xlsx_consumer
 {
 public:
-	xlsx_consumer(workbook &destination);
+    xlsx_consumer(workbook &destination);
 
-	~xlsx_consumer();
+    ~xlsx_consumer();
 
-	void read(std::istream &source);
+    void read(std::istream &source, std::function<void(int)> notify_progress);
 
-	void read(std::istream &source, const std::string &password);
+    void read(std::istream &source, const std::string &password, std::function<void(int)> notify_progress);
 
 private:
     friend class xlnt::streaming_workbook_reader;
@@ -87,11 +88,11 @@ private:
     /// </summary>
     cell read_cell();
 
-	/// <summary>
-	/// Read all the files needed from the XLSX archive and initialize all of
-	/// the data in the workbook to match.
-	/// </summary>
-	void populate_workbook(bool streaming);
+    /// <summary>
+    /// Read all the files needed from the XLSX archive and initialize all of
+    /// the data in the workbook to match.
+    /// </summary>
+    void populate_workbook(bool streaming);
 
     /// <summary>
     ///
@@ -100,10 +101,10 @@ private:
 
     // Metadata Property Readers
 
-	/// <summary>
-	/// Parse the core properties about the current package.
-	/// </summary>
-	void read_core_properties();
+    /// <summary>
+    /// Parse the core properties about the current package.
+    /// </summary>
+    void read_core_properties();
 
     /// <summary>
     /// Parse the core properties about the current package.
@@ -115,95 +116,95 @@ private:
     /// </summary>
     void read_custom_properties();
 
-	// SpreadsheetML-Specific Package Part Readers
+    // SpreadsheetML-Specific Package Part Readers
 
-	/// <summary>
-	/// Parse the main XML document about the workbook and then all child relationships
-	/// of the workbook (e.g. worksheets).
-	/// </summary>
-	void read_office_document(const std::string &content_type);
+    /// <summary>
+    /// Parse the main XML document about the workbook and then all child relationships
+    /// of the workbook (e.g. worksheets).
+    /// </summary>
+    void read_office_document(const std::string &content_type);
 
-	// Workbook Relationship Target Parts
+    // Workbook Relationship Target Parts
 
-	/// <summary>
-	/// xl/calcChain.xml
-	/// </summary>
-	void read_calculation_chain();
+    /// <summary>
+    /// xl/calcChain.xml
+    /// </summary>
+    void read_calculation_chain();
 
-	/// <summary>
-	///
-	/// </summary>
-	void read_connections();
+    /// <summary>
+    ///
+    /// </summary>
+    void read_connections();
 
-	/// <summary>
-	///
-	/// </summary>
-	void read_custom_property();
+    /// <summary>
+    ///
+    /// </summary>
+    void read_custom_property();
 
-	/// <summary>
-	///
-	/// </summary>
-	void read_custom_xml_mappings();
+    /// <summary>
+    ///
+    /// </summary>
+    void read_custom_xml_mappings();
 
-	/// <summary>
-	///
-	/// </summary>
-	void read_external_workbook_references();
+    /// <summary>
+    ///
+    /// </summary>
+    void read_external_workbook_references();
 
-	/// <summary>
-	///
-	/// </summary>
-	void read_pivot_table();
+    /// <summary>
+    ///
+    /// </summary>
+    void read_pivot_table();
 
-	/// <summary>
-	/// xl/sharedStrings.xml
-	/// </summary>
-	void read_shared_string_table();
+    /// <summary>
+    /// xl/sharedStrings.xml
+    /// </summary>
+    void read_shared_string_table();
 
-	/// <summary>
-	///
-	/// </summary>
-	void read_shared_workbook_revision_headers();
+    /// <summary>
+    ///
+    /// </summary>
+    void read_shared_workbook_revision_headers();
 
-	/// <summary>
-	///
-	/// </summary>
-	void read_shared_workbook();
+    /// <summary>
+    ///
+    /// </summary>
+    void read_shared_workbook();
 
-	/// <summary>
-	///
-	/// </summary>
-	void read_shared_workbook_user_data();
+    /// <summary>
+    ///
+    /// </summary>
+    void read_shared_workbook_user_data();
 
-	/// <summary>
-	/// xl/styles.xml
-	/// </summary>
-	void read_stylesheet();
+    /// <summary>
+    /// xl/styles.xml
+    /// </summary>
+    void read_stylesheet();
 
-	/// <summary>
-	/// xl/theme/theme1.xml
-	/// </summary>
-	void read_theme();
+    /// <summary>
+    /// xl/theme/theme1.xml
+    /// </summary>
+    void read_theme();
 
-	/// <summary>
-	///
-	/// </summary>
-	void read_volatile_dependencies();
+    /// <summary>
+    ///
+    /// </summary>
+    void read_volatile_dependencies();
 
-	/// <summary>
-	/// xl/sheets/*.xml
-	/// </summary>
-	void read_chartsheet(const std::string &rel_id);
+    /// <summary>
+    /// xl/sheets/*.xml
+    /// </summary>
+    void read_chartsheet(const std::string &rel_id);
 
-	/// <summary>
-	/// xl/sheets/*.xml
-	/// </summary>
-	void read_dialogsheet(const std::string &rel_id);
+    /// <summary>
+    /// xl/sheets/*.xml
+    /// </summary>
+    void read_dialogsheet(const std::string &rel_id);
 
-	/// <summary>
-	/// xl/sheets/*.xml
-	/// </summary>
-	void read_worksheet(const std::string &rel_id);
+    /// <summary>
+    /// xl/sheets/*.xml
+    /// </summary>
+    void read_worksheet(const std::string &rel_id);
 
     /// <summary>
     /// xl/sheets/*.xml
@@ -220,44 +221,44 @@ private:
     /// </summary>
     worksheet read_worksheet_end(const std::string &rel_id);
 
-	// Sheet Relationship Target Parts
+    // Sheet Relationship Target Parts
 
-	/// <summary>
-	///
-	/// </summary>
-	void read_comments(worksheet ws);
+    /// <summary>
+    ///
+    /// </summary>
+    void read_comments(worksheet ws);
 
-	/// <summary>
-	///
-	/// </summary>
-	void read_vml_drawings(worksheet ws);
+    /// <summary>
+    ///
+    /// </summary>
+    void read_vml_drawings(worksheet ws);
 
-	/// <summary>
-	///
-	/// </summary>
-	void read_drawings(worksheet ws, const path &part);
+    /// <summary>
+    ///
+    /// </summary>
+    void read_drawings(worksheet ws, const path &part);
 
-	// Unknown Parts
+    // Unknown Parts
 
-	/// <summary>
-	///
-	/// </summary>
-	void read_unknown_parts();
+    /// <summary>
+    ///
+    /// </summary>
+    void read_unknown_parts();
 
-	/// <summary>
-	///
-	/// </summary>
-	void read_unknown_relationships();
+    /// <summary>
+    ///
+    /// </summary>
+    void read_unknown_relationships();
 
-	/// <summary>
-	///
-	/// </summary>
-	void read_image(const path &part);
+    /// <summary>
+    ///
+    /// </summary>
+    void read_image(const path &part);
 
-	/// <summary>
-	///
-	/// </summary>
-	void read_binary(const path &part);
+    /// <summary>
+    ///
+    /// </summary>
+    void read_binary(const path &part);
 
     // Common Section Readers
 
@@ -373,44 +374,44 @@ private:
 
     // Properties
 
-	/// <summary>
-	/// Convenience method to dereference the pointer to the current parser to avoid
-	/// having to use "parser_->" constantly.
-	/// </summary>
-	xml::parser &parser();
+    /// <summary>
+    /// Convenience method to dereference the pointer to the current parser to avoid
+    /// having to use "parser_->" constantly.
+    /// </summary>
+    xml::parser &parser();
 
     /// <summary>
     /// Convenience method to access the target workbook's manifest.
     /// </summary>
     class manifest &manifest();
 
-	/// <summary>
-	/// The ZIP file containing the files that make up the OOXML package.
-	/// </summary>
-	std::unique_ptr<izstream> archive_;
+    /// <summary>
+    /// The ZIP file containing the files that make up the OOXML package.
+    /// </summary>
+    std::unique_ptr<izstream> archive_;
 
-	/// <summary>
-	/// Map of sheet titles to relationship IDs.
-	/// </summary>
-	std::unordered_map<std::string, std::size_t> sheet_title_id_map_;
+    /// <summary>
+    /// Map of sheet titles to relationship IDs.
+    /// </summary>
+    std::unordered_map<std::string, std::size_t> sheet_title_id_map_;
 
-	/// <summary>
-	/// Map of sheet titles to indices. Used to ensure sheets are maintained
-	/// in the correct order.
-	/// </summary>
-	std::unordered_map<std::string, std::size_t> sheet_title_index_map_;
+    /// <summary>
+    /// Map of sheet titles to indices. Used to ensure sheets are maintained
+    /// in the correct order.
+    /// </summary>
+    std::unordered_map<std::string, std::size_t> sheet_title_index_map_;
 
-	/// <summary>
-	/// A reference to the workbook which is being read.
-	/// </summary>
-	workbook &target_;
+    /// <summary>
+    /// A reference to the workbook which is being read.
+    /// </summary>
+    workbook &target_;
 
-	/// <summary>
-	/// This pointer is generally set by instantiating an xml::parser in a function
-	/// scope and then calling a read_*() method which uses xlsx_consumer::parser()
-	/// to access the object.
-	/// </summary>
-	xml::parser *parser_;
+    /// <summary>
+    /// This pointer is generally set by instantiating an xml::parser in a function
+    /// scope and then calling a read_*() method which uses xlsx_consumer::parser()
+    /// to access the object.
+    /// </summary>
+    xml::parser *parser_;
 
     std::vector<xml::qname> stack_;
 
@@ -419,14 +420,16 @@ private:
     bool streaming_ = false;
 
     std::unique_ptr<detail::cell_impl> streaming_cell_;
-    
+
     std::unordered_map<int, std::string> shared_formulae_;
     std::unordered_map<std::string, std::string> array_formulae_;
 
     detail::worksheet_impl *current_worksheet_;
     number_serialiser converter_;
-    
+
     std::vector<defined_name> defined_names_;
+
+    load_progress_notifier load_progress_notifier_;
 };
 
 } // namespace detail

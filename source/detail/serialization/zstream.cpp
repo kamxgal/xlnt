@@ -51,6 +51,8 @@ OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGES.
 
 namespace {
 
+constexpr unsigned short COMPRESSION_TYPE_DEFLATE = 8;
+
 template <class T>
 T read_int(std::istream &stream)
 {
@@ -304,6 +306,20 @@ public:
     }
 
     virtual int overflow(int c = EOF) override;
+
+protected:
+    virtual pos_type seekoff(
+            off_type off, std::ios_base::seekdir dir,
+            std::ios_base::openmode which = std::ios_base::in | std::ios_base::out ) override
+    {
+        return istream.rdbuf()->pubseekoff(off, dir, which);
+    }
+
+    virtual pos_type seekpos(
+            pos_type pos, std::ios_base::openmode which = std::ios_base::in | std::ios_base::out) override
+    {
+        return istream.rdbuf()->pubseekpos(pos, which);
+    }
 };
 
 int zip_streambuf_decompress::overflow(int)
@@ -625,6 +641,17 @@ std::vector<path> izstream::files() const
 bool izstream::has_file(const path &filename) const
 {
     return file_headers_.count(filename.string()) != 0;
+}
+
+uint32_t izstream::get_part_size(const path &filename) const
+{
+    if (!has_file(filename))
+    {
+        throw xlnt::exception("file not found");
+    }
+
+    const auto& header = file_headers_.at(filename.string());
+    return header.compression_type == COMPRESSION_TYPE_DEFLATE ? header.compressed_size : header.uncompressed_size;
 }
 
 } // namespace detail

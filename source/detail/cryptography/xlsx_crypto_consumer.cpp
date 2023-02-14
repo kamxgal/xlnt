@@ -339,13 +339,13 @@ std::vector<std::uint8_t> XLNT_API decrypt_xlsx(const std::vector<std::uint8_t> 
     return ::decrypt_xlsx(data, utf8_to_utf16(password));
 }
 
-void xlsx_consumer::read(std::istream &source, const std::string &password)
+void xlsx_consumer::read(std::istream &source, const std::string &password, std::function<void(int)> notify_progress)
 {
     std::vector<std::uint8_t> data((std::istreambuf_iterator<char>(source)), (std::istreambuf_iterator<char>()));
     const auto decrypted = decrypt_xlsx(data, password);
     vector_istreambuf decrypted_buffer(decrypted);
     std::istream decrypted_stream(&decrypted_buffer);
-    read(decrypted_stream);
+    read(decrypted_stream, std::move(notify_progress));
 }
 
 } // namespace detail
